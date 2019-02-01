@@ -2,7 +2,7 @@ import os
 from setuptools import find_packages, setup
 
 
-VERSION = '0.2.8'
+VERSION = '0.2.9'
 
 
 def read(fname):
@@ -37,5 +37,13 @@ setup(
         'Programming Language :: Python :: 3.5',
     ],
     test_suite='tests',
-    tests_require=['six'],
+    install_requires=[
+        'six',
+    ],
+    tests_require=[
+        'flake8',
+        'pytest',
+        'six',
+        'tox',
+    ],
 )
