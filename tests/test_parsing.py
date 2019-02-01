@@ -5,7 +5,7 @@ import six
 from datauri import DataURI, exceptions
 
 
-TEST_DIR = os.path.dirname(__file__)
+TEST_DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
 
 class ParseTestCase(unittest.TestCase):
@@ -29,26 +29,34 @@ class ParseTestCase(unittest.TestCase):
 
     def test_parse_invalid_mimetype(self):
         with self.assertRaises(exceptions.InvalidMimeType):
-            DataURI.make(mimetype='*garbled*', charset='utf-8', base64=True, data='VGhlIHF1aWNrIGJyb3duIGZveCBqdW1wZWQgb3ZlciB0aGUgbGF6eSBkb2cu')
+            DataURI.make(
+                mimetype='*garbled*',
+                charset='utf-8',
+                base64=True,
+                data='VGhlIHF1aWNrIGJyb3duIGZveCBqdW1wZWQgb3ZlciB0aGUgbGF6eSBkb2cu')
 
     def test_parse_invalid_charset(self):
         with self.assertRaises(exceptions.InvalidCharset):
-            DataURI.make(mimetype='text/plain', charset='*garbled*', base64=True, data='VGhlIHF1aWNrIGJyb3duIGZveCBqdW1wZWQgb3ZlciB0aGUgbGF6eSBkb2cu')
+            DataURI.make(
+                mimetype='text/plain',
+                charset='*garbled*',
+                base64=True,
+                data='VGhlIHF1aWNrIGJyb3duIGZveCBqdW1wZWQgb3ZlciB0aGUgbGF6eSBkb2cu')
 
     def test_from_file(self):
-        filename = os.path.join(TEST_DIR, 'test_file.txt')
+        filename = os.path.join(TEST_DATA_DIR, 'fixture_file.txt')
         parsed = DataURI.from_file(filename)
         self.assertEqual(parsed.data, b'This is a message.\n')
         self.assertEqual(parsed.charset, None)
 
     def test_from_file_charset(self):
-        filename = os.path.join(TEST_DIR, 'test_file.txt')
+        filename = os.path.join(TEST_DATA_DIR, 'fixture_file.txt')
         parsed = DataURI.from_file(filename, charset='us-ascii')
         self.assertEqual(parsed.data, b'This is a message.\n')
         self.assertEqual(parsed.text, 'This is a message.\n')
         self.assertEqual(parsed.charset, 'us-ascii')
 
-        filename = os.path.join(TEST_DIR, 'test_file_ebcdic.txt')
+        filename = os.path.join(TEST_DATA_DIR, 'fixture_file_ebcdic.txt')
         parsed = DataURI.from_file(filename, charset='cp500')
         self.assertEqual(parsed.data, b'\xe3\x88\x89\xa2@\x89\xa2@\x81@\x94\x85\xa2\xa2\x81\x87\x85K%')
         self.assertEqual(parsed.text, 'This is a message.\n')
