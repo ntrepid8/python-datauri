@@ -1,15 +1,16 @@
+import base64
 import mimetypes
 import re
 import textwrap
 
-try:
-    from base64 import decodebytes as decode64
-    from base64 import encodebytes as encode64
-    BYTES = True
-except ImportError:
-    from base64 import decodestring as decode64
-    from base64 import encodestring as encode64
-    BYTES = False
+import six
+
+# WARNING: The functions `base64.decodebytes` and `base64.encodebytes`
+#          are sometimes monkey patched and can not be relied on to
+#          produce an import error as a method of detecting Python 2
+#          vs. Python 3.
+# see: https://github.com/PythonCharmers/python-future
+#      /blob/master/src/future/backports/xmlrpc/client.py#L137-L139
 
 try:
     from urllib.parse import quote, unquote
@@ -39,7 +40,23 @@ _DATA_URI_RE = re.compile(r'^{}$'.format(DATA_URI_REGEX), re.DOTALL)
 class DataURI(str):
 
     @classmethod
-    def make(cls, mimetype, charset, base64, data):
+    def make(cls, mimetype, charset, *args, **kwargs):
+        # hacked to maintain backward compatibility with argument name that
+        #  shadowed the standard lib base64 (sorry)
+
+        # is_base64
+        if len(args) > 0:
+            is_base64 = args[0]
+        elif 'base64' in kwargs:
+            is_base64 = kwargs['base64']
+        else:
+            is_base64 = kwargs.get('is_base64', True)
+        # data
+        if len(args) > 1:
+            data = args[1]
+        else:
+            data = kwargs['data']
+
         parts = ['data:']
         if mimetype is not None:
             if not _MIMETYPE_RE.match(mimetype):
@@ -49,29 +66,35 @@ class DataURI(str):
             if not _CHARSET_RE.match(charset):
                 raise InvalidCharset("Invalid charset: %r" % charset)
             parts.extend([';charset=', charset])
-        if base64:
+        if is_base64:
             parts.append(';base64')
-            if BYTES:
+            if six.PY3:
                 _charset = charset or 'utf-8'
                 if isinstance(data, bytes):
                     _data = data
                 else:
                     _data = bytes(data, _charset)
-                encoded_data = encode64(_data).decode(_charset).strip()
-            else:
-                encoded_data = encode64(data).strip()
+                encoded_data = base64.encodebytes(_data).decode(_charset).strip()
+            elif six.PY2:
+                encoded_data = base64.encodestring(data).strip()
         else:
             encoded_data = quote(data)
         parts.extend([',', encoded_data])
         return cls(''.join(parts))
 
     @classmethod
-    def from_file(cls, filename, charset=None, base64=True):
+    def from_file(cls, filename, charset=None, **kwargs):
+        # hacked to maintain backward compatibility with argument name that
+        #  shadowed the standard lib base64 (sorry)
+        if 'base64' in kwargs:
+            is_base64 = kwargs['base64']
+        else:
+            is_base64 = kwargs.get('is_base64', True)
         mimetype, _ = mimetypes.guess_type(filename, strict=False)
         with open(filename, 'rb') as fp:
             data = fp.read()
 
-        return cls.make(mimetype, charset, base64, data)
+        return cls.make(mimetype, charset, is_base64, data)
 
     def __new__(cls, *args, **kwargs):
         uri = super(DataURI, cls).__new__(cls, *args, **kwargs)
@@ -124,12 +147,12 @@ class DataURI(str):
         charset = match.group('charset') or None
 
         if match.group('base64'):
-            if BYTES:
+            if six.PY3:
                 _charset = charset or 'utf-8'
                 _data = bytes(match.group('data'), _charset)
-                data = decode64(_data)
-            else:
-                data = decode64(match.group('data'))
+                data = base64.decodebytes(_data)
+            elif six.PY2:
+                data = base64.decodestring(match.group('data'))
         else:
             data = unquote(match.group('data'))
 
